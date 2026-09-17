@@ -93,6 +93,37 @@ class EGMHSA(nn.Module):
         return tokens.transpose(1, 2).reshape(b, c, h, w)
 
 
+class Bottleneck(nn.Module):
+    def __init__(self, channels=512, heads=4, dropout=0.1):
+        super().__init__()
+        self.conv = DoubleConv(channels, channels)
+        self.attention1 = EGMHSA(channels, heads, dropout)
+        self.attention2 = EGMHSA(channels, heads, dropout)
+
+    def forward(self, x, edge):
+        z = self.conv(x)
+        z = self.attention1(z, edge)
+        return self.attention2(z, edge)
+
+
+class Decoder(nn.Module):
+    def __init__(self, widths=DEFAULT_WIDTHS, bottleneck_channels=512, kernel_size=3):
+        super().__init__()
+        self.ups = nn.ModuleList()
+        self.convs = nn.ModuleList()
+        in_channels = bottleneck_channels
+        for width in reversed(widths):
+            self.ups.append(nn.ConvTranspose2d(in_channels, width, kernel_size=2, stride=2))
+            self.convs.append(DoubleConv(2 * width, width, kernel_size))
+            in_channels = width
+
+    def forward(self, z, skips):
+        for up, conv, skip in zip(self.ups, self.convs, reversed(skips)):
+            z = up(z)
+            z = conv(torch.cat([skip, z], dim=1))
+        return z
+
+
 class FilaNet(nn.Module):
     def __init__(self):
         super(FilaNet, self).__init__()

@@ -3,6 +3,8 @@ import torch.nn as nn
 
 from model import (
     DEFAULT_WIDTHS,
+    Bottleneck,
+    Decoder,
     DeformedConvolution,
     DoubleConv,
     EdgePrior,
@@ -108,3 +110,35 @@ def test_egmhsa_edge_prior_changes_the_output():
 def test_egmhsa_uses_four_heads_by_default():
     attn = EGMHSA(dim=512)
     assert attn.attention.num_heads == 4
+
+
+def test_bottleneck_preserves_shape():
+    neck = Bottleneck(channels=64, heads=4, dropout=0.0)
+    out = neck(torch.randn(2, 64, 4, 4), torch.randn(2, 16, 64))
+    assert out.shape == (2, 64, 4, 4)
+
+
+def test_bottleneck_stacks_two_attention_blocks():
+    neck = Bottleneck(channels=64)
+    assert isinstance(neck.attention1, EGMHSA)
+    assert isinstance(neck.attention2, EGMHSA)
+
+
+def test_decoder_restores_input_resolution():
+    dec = Decoder()
+    skips = [
+        torch.randn(2, 16, 256, 256),
+        torch.randn(2, 32, 128, 128),
+        torch.randn(2, 64, 64, 64),
+        torch.randn(2, 128, 32, 32),
+        torch.randn(2, 256, 16, 16),
+        torch.randn(2, 512, 8, 8),
+    ]
+    out = dec(torch.randn(2, 512, 4, 4), skips)
+    assert out.shape == (2, 16, 256, 256)
+
+
+def test_decoder_consumes_every_skip():
+    dec = Decoder()
+    assert len(dec.ups) == 6
+    assert len(dec.convs) == 6
