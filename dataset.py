@@ -5,8 +5,8 @@ import json
 import cv2 as cv
 import numpy as np
 import torch
-from torch.utils.data import Dataset
-from torchvision.transforms import ToTensor
+from torch.utils.data import Dataset, DataLoader
+from torchvision.transforms import ToTensor, functional
 from pycocotools import mask as mask_utils
 
 
@@ -79,3 +79,23 @@ class FilamentDataset(Dataset):
             return image, key
 
         return image, self._build_mask(key, height, width)
+    
+if __name__ == "__main__":
+    data = FilamentDataset(images_dir=Path("filament-segmentation-2026\\MAGFiLO_1.0_Kaggle_2026\\train\\train_images"), json_path=Path("filament-segmentation-2026\\MAGFiLO_1.0_Kaggle_2026\\train\\MAGFiLO_1.0_Annotations_kaggle2026_train.json"))
+    data_to_plot = 0
+    print(len(data))
+    print(data[data_to_plot])
+    
+    img, mask = data[data_to_plot]
+    img = img.numpy().squeeze()
+    mask = mask.numpy().squeeze()
+    cv.imshow("Image", img)
+    cv.imshow("Mask", mask)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+    
+    overlay = cv.addWeighted(img, 0.5, mask, 0.5, 0)
+    cv.imshow("Overlay", overlay)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+    
