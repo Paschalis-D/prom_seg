@@ -75,6 +75,24 @@ class EdgePrior(nn.Module):
         return edge.flatten(2).transpose(1, 2)
 
 
+class EGMHSA(nn.Module):
+    """Multi-head self-attention with the edge prior added to Q and K in place of
+    positional encodings."""
+
+    def __init__(self, dim=512, heads=4, dropout=0.1):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(dim, num_heads=heads, dropout=dropout, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(dim)
+
+    def forward(self, z, edge):
+        b, c, h, w = z.shape
+        tokens = z.flatten(2).transpose(1, 2)
+        attended, _ = self.attention(tokens + edge, tokens + edge, tokens)
+        tokens = self.norm(tokens + self.dropout(attended))
+        return tokens.transpose(1, 2).reshape(b, c, h, w)
+
+
 class FilaNet(nn.Module):
     def __init__(self):
         super(FilaNet, self).__init__()

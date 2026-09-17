@@ -1,7 +1,14 @@
 import torch
 import torch.nn as nn
 
-from model import DEFAULT_WIDTHS, DeformedConvolution, DoubleConv, EdgePrior, Encoder
+from model import (
+    DEFAULT_WIDTHS,
+    DeformedConvolution,
+    DoubleConv,
+    EdgePrior,
+    EGMHSA,
+    Encoder,
+)
 
 
 def test_deformed_convolution_preserves_spatial_dims():
@@ -80,3 +87,24 @@ def test_edge_prior_squeezes_to_single_channel_before_projection():
     assert ep.edge_conv.out_channels == 1
     assert ep.project.kernel_size == (1, 1)
     assert ep.project.out_channels == 512
+
+
+def test_egmhsa_preserves_shape():
+    attn = EGMHSA(dim=64, heads=4, dropout=0.0)
+    out = attn(torch.randn(2, 64, 4, 4), torch.randn(2, 16, 64))
+    assert out.shape == (2, 64, 4, 4)
+
+
+def test_egmhsa_edge_prior_changes_the_output():
+    torch.manual_seed(0)
+    attn = EGMHSA(dim=64, heads=4, dropout=0.0).eval()
+    z = torch.randn(2, 64, 4, 4)
+    with torch.no_grad():
+        without = attn(z, torch.zeros(2, 16, 64))
+        with_edge = attn(z, torch.randn(2, 16, 64))
+    assert not torch.allclose(without, with_edge)
+
+
+def test_egmhsa_uses_four_heads_by_default():
+    attn = EGMHSA(dim=512)
+    assert attn.attention.num_heads == 4
