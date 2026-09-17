@@ -4,6 +4,8 @@ from torchvision.ops import DeformConv2d
 
 # TODO: Test later if aditionally to the offsets the network could benefit from learninf a mask too.
 
+DEFAULT_WIDTHS = (16, 32, 64, 128, 256, 512)
+
 
 class DeformedConvolution(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size):
@@ -40,12 +42,12 @@ class DoubleConv(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels=1, stage_channels=(64, 128, 256, 512), kernel_size=3):
+    def __init__(self, in_channels=1, widths=DEFAULT_WIDTHS, kernel_size=3):
         super(Encoder, self).__init__()
-        channels = [in_channels, *stage_channels]
+        channels = [in_channels, *widths]
         self.stages = nn.ModuleList([
             DoubleConv(channels[i], channels[i + 1], kernel_size)
-            for i in range(len(stage_channels))
+            for i in range(len(widths))
         ])
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
