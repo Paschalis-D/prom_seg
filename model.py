@@ -138,3 +138,25 @@ class FilaNet(nn.Module):
         edge = self.edge_prior(x, out_hw=encoded.shape[-2:])
         z = self.bottleneck(encoded, edge)
         return self.head(self.decoder(z, skips))
+
+
+if __name__ == "__main__":
+    import time
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = FilaNet().to(device)
+    params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"trainable parameters: {params / 1e6:.1f}M")
+
+    x = torch.randn(1, 1, 2048, 2048, device=device)
+    if device == "cuda":
+        torch.cuda.reset_peak_memory_stats()
+
+    start = time.time()
+    logits = model(x)
+    logits.sum().backward()
+    if device == "cuda":
+        torch.cuda.synchronize()
+        print(f"peak VRAM: {torch.cuda.max_memory_allocated() / 1024 ** 3:.2f} GB")
+    print(f"output: {tuple(logits.shape)}")
+    print(f"fwd+bwd: {time.time() - start:.2f}s")
