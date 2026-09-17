@@ -10,6 +10,7 @@ from model import (
     EdgePrior,
     EGMHSA,
     Encoder,
+    FilaNet,
 )
 
 
@@ -142,3 +143,28 @@ def test_decoder_consumes_every_skip():
     dec = Decoder()
     assert len(dec.ups) == 6
     assert len(dec.convs) == 6
+
+
+def test_filanet_outputs_one_channel_at_input_resolution():
+    model = FilaNet()
+    y = model(torch.randn(2, 1, 256, 256))
+    assert y.shape == (2, 1, 256, 256)
+
+
+def test_filanet_head_emits_raw_logits():
+    model = FilaNet()
+    assert isinstance(model.head, nn.Conv2d)
+    assert model.head.out_channels == 1
+    assert model.head.kernel_size == (1, 1)
+
+
+def test_filanet_accepts_any_resolution_divisible_by_64():
+    model = FilaNet()
+    assert model(torch.randn(1, 1, 128, 128)).shape == (1, 1, 128, 128)
+
+
+def test_every_parameter_receives_a_gradient():
+    model = FilaNet()
+    model(torch.randn(1, 1, 128, 128)).sum().backward()
+    unused = [name for name, p in model.named_parameters() if p.grad is None]
+    assert unused == []

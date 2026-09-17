@@ -125,7 +125,16 @@ class Decoder(nn.Module):
 
 
 class FilaNet(nn.Module):
-    def __init__(self):
-        super(FilaNet, self).__init__()
-        # Define your model architecture here
-        pass
+    def __init__(self, in_channels=1, widths=DEFAULT_WIDTHS, heads=4, dropout=0.1):
+        super().__init__()
+        self.encoder = Encoder(in_channels, widths)
+        self.edge_prior = EdgePrior(in_channels, embed_dim=widths[-1])
+        self.bottleneck = Bottleneck(widths[-1], heads, dropout)
+        self.decoder = Decoder(widths, bottleneck_channels=widths[-1])
+        self.head = nn.Conv2d(widths[0], 1, kernel_size=1)
+
+    def forward(self, x):
+        skips, encoded = self.encoder(x)
+        edge = self.edge_prior(x, out_hw=encoded.shape[-2:])
+        z = self.bottleneck(encoded, edge)
+        return self.head(self.decoder(z, skips))
