@@ -60,6 +60,21 @@ class Encoder(nn.Module):
         return skip_connections, x
 
 
+class EdgePrior(nn.Module):
+    """Learned edge map from the raw input, projected onto the bottleneck token grid."""
+
+    def __init__(self, in_channels=1, embed_dim=512, kernel_size=3):
+        super().__init__()
+        self.edge_conv = nn.Conv2d(in_channels, 1, kernel_size, padding=kernel_size // 2)
+        self.project = nn.Conv2d(1, embed_dim, kernel_size=1)
+
+    def forward(self, x, out_hw):
+        edge = torch.sigmoid(self.edge_conv(x))
+        edge = nn.functional.interpolate(edge, size=out_hw, mode="bilinear", align_corners=False)
+        edge = self.project(edge)
+        return edge.flatten(2).transpose(1, 2)
+
+
 class FilaNet(nn.Module):
     def __init__(self):
         super(FilaNet, self).__init__()

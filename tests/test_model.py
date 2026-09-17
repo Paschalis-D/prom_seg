@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model import DEFAULT_WIDTHS, DeformedConvolution, DoubleConv, Encoder
+from model import DEFAULT_WIDTHS, DeformedConvolution, DoubleConv, EdgePrior, Encoder
 
 
 def test_deformed_convolution_preserves_spatial_dims():
@@ -61,3 +61,22 @@ def test_encoder_has_one_stage_per_width():
     enc = Encoder()
     assert len(enc.stages) == len(DEFAULT_WIDTHS)
     assert DEFAULT_WIDTHS == (16, 32, 64, 128, 256, 512)
+
+
+def test_edge_prior_produces_one_token_per_bottleneck_cell():
+    ep = EdgePrior(in_channels=1, embed_dim=512)
+    e = ep(torch.randn(2, 1, 256, 256), out_hw=(4, 4))
+    assert e.shape == (2, 16, 512)
+
+
+def test_edge_prior_is_resolution_agnostic():
+    ep = EdgePrior(in_channels=1, embed_dim=64)
+    assert ep(torch.randn(2, 1, 256, 256), out_hw=(8, 8)).shape == (2, 64, 64)
+    assert ep(torch.randn(2, 1, 128, 128), out_hw=(2, 2)).shape == (2, 4, 64)
+
+
+def test_edge_prior_squeezes_to_single_channel_before_projection():
+    ep = EdgePrior(in_channels=1, embed_dim=512)
+    assert ep.edge_conv.out_channels == 1
+    assert ep.project.kernel_size == (1, 1)
+    assert ep.project.out_channels == 512
