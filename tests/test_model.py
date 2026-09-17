@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model import DeformedConvolution
+from model import DeformedConvolution, DoubleConv
 
 
 def test_deformed_convolution_preserves_spatial_dims():
@@ -20,3 +20,17 @@ def test_deformed_convolution_offsets_match_kernel():
     block = DeformedConvolution(in_channels=3, out_channels=8, kernel_size=3)
     assert block.offset_conv.out_channels == 2 * 3 * 3
     assert block.deform_conv.stride == (1, 1)
+
+
+def test_double_conv_changes_channels_once():
+    block = DoubleConv(in_channels=4, out_channels=16)
+    y = block(torch.randn(2, 4, 32, 32))
+    assert y.shape == (2, 16, 32, 32)
+
+
+def test_double_conv_second_layer_keeps_width():
+    block = DoubleConv(in_channels=4, out_channels=16)
+    assert block.conv1.deform_conv.in_channels == 4
+    assert block.conv1.deform_conv.out_channels == 16
+    assert block.conv2.deform_conv.in_channels == 16
+    assert block.conv2.deform_conv.out_channels == 16
